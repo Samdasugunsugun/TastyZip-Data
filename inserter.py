@@ -1,6 +1,7 @@
 import glob
 import time
 import json
+from collections import OrderedDict
 
 if __name__ == '__main__':
   json_files = glob.glob('result/final/*.json')
@@ -64,7 +65,7 @@ if __name__ == '__main__':
 
   keywords = list(keywords)
   keywords = [keyword for keyword in keywords if '\n' not in keyword]
-  k2i = {keyword: idx for idx, keyword in enumerate(keywords)}
+  k2i = OrderedDict((keyword, idx) for idx, keyword in enumerate(keywords))
   connects = []
 
   for review in reviews:
@@ -75,17 +76,17 @@ if __name__ == '__main__':
       connects.append({
         'id': len(connects) + 1,
         'review_id': review['id'],
-        'keyword_id': k2i[keyword]
+        'keyword_id': k2i[keyword] + 1
       })
   with open('init.sql', 'w', encoding='utf-8') as fp:
     for restaurant in restaurants:
       fp.write(f"insert ignore into restaurant(restaurant_id, name, category, address, lat, lon, score) values({restaurant['id']}, '{restaurant['name']}', '{restaurant['category']}', '{restaurant['address']}', {restaurant['lat']}, {restaurant['lon']}, {restaurant['score']});\n")
 
-    for idx, keyword in enumerate(keywords):
-      fp.write(f"insert ignore into keyword(keyword_id, keyword) values({idx+1}, '{keyword}');\n")
-
     for review in reviews:
       fp.write(f"insert ignore into review(review_id, restaurant_id, content, score) values({review['id']}, {review['restaurant_id']}, '{review['content']}', {review['score']});\n")
+
+    for idx, keyword in enumerate(keywords):
+      fp.write(f"insert ignore into keyword(keyword_id, keyword) values({idx+1}, '{keyword}');\n")
 
     for idx in range(0, len(connects), 500):
       query = f"insert ignore into connect(connect_id, review_id, keyword_id) values"
@@ -95,4 +96,9 @@ if __name__ == '__main__':
         if i != 499 and idx+i+1 < len(connects):
           query += ','
       fp.write(f"{query};\n")
+
+  print(f'Restaurant: {len(restaurants)}')
+  print(f'Review: {len(reviews)}')
+  print(f'Keyword: {len(keywords)}')
+  print(f'Connect: {len(connects)}')
   print('{:.2f}sec'.format(time.time() - start_time))
